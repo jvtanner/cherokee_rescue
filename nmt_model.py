@@ -285,7 +285,24 @@ class NMT(nn.Module):
         ###     Tensor Stacking:
         ###         https://pytorch.org/docs/stable/torch.html#torch.stack
 
+        # Dot product of W_attnproj (handout notation) with enc_hiddens
+        enc_hiddens_proj = self.att_projection(enc_hiddens)
 
+        # Tensor from target word embeddings
+        Y = self.model_embeddings.target(target_padded)
+
+        for Y_t in torch.split(Y, 1):  # Y_t (1, b, e)
+            Y_t = torch.squeeze(Y_t)  # Y_t (b, e)
+            Ybar_t = torch.cat((o_prev, Y_t), dim=1)  # ybar (b, e+h)
+            # Run step function to get Decoder's next hidden + cell state as well as combined output
+            dec_state, o_t, _ = self.step(Ybar_t, dec_state, enc_hiddens, enc_hiddens_proj, enc_masks)
+            # add new output to combined outputs
+            combined_outputs.append(o_t)
+            # update o_prev
+            o_prev = o_t
+
+        # Convert combined_outputs to single tensor shape from list
+        combined_outputs = torch.stack(combined_outputs, dim=0)
 
         ### END YOUR CODE
 
@@ -344,8 +361,16 @@ class NMT(nn.Module):
         ###     Tensor Squeeze:
         ###         https://pytorch.org/docs/stable/torch.html#torch.squeeze
 
+        # Apply decoder to Ybar_t and dec_state to get new dec_state
+        dec_state = self.decoder(Ybar_t, dec_state)
 
+        # Split dec_state into 2 parts: dec_hidden and dec_cell
+        dec_hidden, dec_cell = dec_state
 
+        # Compute attention scores
+        dec_hidden_unsqueeze = torch.unsqueeze(dec_hidden, dim=2)
+        e_t = torch.bmm(enc_hiddens_proj, dec_hidden_unsqueeze)
+        e_t = torch.squeeze(e_t, dim=2)
 
         ### END YOUR CODE
 
@@ -381,9 +406,23 @@ class NMT(nn.Module):
         ###     Tanh:
         ###         https://pytorch.org/docs/stable/torch.html#torch.tanh
 
+        # Apply softmax to e_t
+        alpha_t = nn.functional.softmax(e_t, dim=1)
+        alpha_t = torch.unsqueeze(alpha_t, dim=1)
 
+        # Use Hadamard product on softmax result and enc_hiddens to get attention vector
+        a_t = torch.bmm(alpha_t, enc_hiddens)
+        a_t = torch.squeeze(a_t, dim=1)
 
+        # Concatenate dec_hidden and src_len
+        U_t = torch.cat([a_t, dec_hidden], dim=1)
 
+        # Dot U_t with combined output projection to get V_t
+        V_t = self.combined_output_projection(U_t)
+
+        # Apply Tanh and dropout to get final Output
+        norm_V_t = torch.tanh(V_t)
+        O_t = self.dropout(norm_V_t)
 
         ### END YOUR CODE
 
