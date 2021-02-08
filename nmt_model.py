@@ -193,23 +193,24 @@ class NMT(nn.Module):
         X = self.model_embeddings.source(source_padded)
 
         # Turn the padded tensor into a PackedSequence object
-        X = pack_padded_sequence(X, source_lengths)
+        pack_X = nn.utils.rnn.pack_padded_sequence(X, source_lengths)
         # Apply encoder to the packed sequence
-        enc_hiddens, (last_hidden, last_cell) = self.encoder(X)
+        enc_hiddens, (last_hidden, last_cell) = self.encoder(pack_X)
         # Pads packed batch of variable length sequences
-        enc_hiddens = pad_packed_sequence(enc_hiddens, batch_first=True)[0]
+        enc_hiddens, _ = nn.utils.rnn.pad_packed_sequence(enc_hiddens)
+        enc_hiddens = enc_hiddens.permute(1, 0, 2)
 
         # Change the shape of last_hidden so that forward and backward versions are concatenated
         fwd_h = last_hidden[0]
         bwd_h = last_hidden[1]
-        cat_h_enc = torch.cat([fwd_h, bwd_h], dim=1)
+        cat_h_enc = torch.cat((fwd_h, bwd_h), dim=1)
         # init_decoder_hidden is the result of  cat_h_enc dotted with h_projection
         init_decoder_hidden = self.h_projection(cat_h_enc)
 
         # Change the shape of last_cell so that forward and backward versions are concatenated
         fwd_c = last_cell[0]
         bwd_c = last_cell[1]
-        cat_c_enc = torch.cat([fwd_c, bwd_c], dim=1)
+        cat_c_enc = torch.cat((fwd_c, bwd_c), dim=1)
         # init_decoder_cell is the result of  cat_h_enc dotted with h_projection
         init_decoder_cell = self.c_projection(cat_c_enc)
 
