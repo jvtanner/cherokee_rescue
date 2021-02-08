@@ -158,7 +158,7 @@ class VocabEntry(object):
 
 
 class Vocab(object):
-    """ Vocab encapsulating src and target langauges.
+    """ Vocab encapsulating src and target languages.
     """
     def __init__(self, src_vocab: VocabEntry, tgt_vocab: VocabEntry):
         """ Init Vocab.

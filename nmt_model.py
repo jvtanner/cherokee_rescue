@@ -23,8 +23,8 @@ Hypothesis = namedtuple('Hypothesis', ['value', 'score'])
 
 class NMT(nn.Module):
     """ Simple Neural Machine Translation Model:
-        - Bidrectional LSTM Encoder
-        - Unidirection LSTM Decoder
+        - Bidirectional LSTM Encoder
+        - Unidirectional LSTM Decoder
         - Global Attention Model (Luong, et al. 2015)
     """
     def __init__(self, embed_size, hidden_size, vocab, dropout_rate=0.2):
@@ -77,8 +77,28 @@ class NMT(nn.Module):
         ###     Dropout Layer:
         ###         https://pytorch.org/docs/stable/nn.html#torch.nn.Dropout
 
+        # Decoder LSTM input: the word embedding
+        self.encoder = nn.LSTM(embed_size, self.hidden_size, bias=True, bidirectional=True)
 
+        # Encoder LSTM input: concatenation of Output vector (hx1) and yhat (ex1)
+        self.decoder = nn.LSTMCell(self.hidden_size+embed_size, self.hidden_size, bias=True)
 
+        # h_proj input: concatenation of forward AND backward Decoder LSTM (2hx1). h_proj output: h_decoder (hx1).
+        self.h_projection = nn.Linear(2*self.hidden_size, self.hidden_size, bias=False)
+
+        # c_proj same dimensions as above, but handling c vectors.
+        self.c_projection = nn.Linear(2*self.hidden_size, self.hidden_size, bias=False)
+
+        # att_proj input: Encoder hidden concatenation (2hx1). Output multiplied w Decoder hidden layer (hx1)
+        self.att_projection = nn.Linear(2*self.hidden_size, self.hidden_size, bias=False)
+
+        # c_o_p input: concatenation of Attention vector (2hx1) and Encoder hidden (hx1). Output: hx1
+        self. combined_output_projection = nn.Linear(3*self.hidden_size, self.hidden_size, bias=False)
+
+        # target_vocab input: Output vector (hx1). target_vocab output: prob dist for entire target vocab
+        self.target_vocab_projection = nn.Linear(self.hidden_size, len(self.vocab.tgt), bias=False)
+
+        self.dropout = nn.Dropout(p=dropout_rate)
 
         ### END YOUR CODE
 
@@ -169,9 +189,32 @@ class NMT(nn.Module):
         ###     Tensor Permute:
         ###         https://pytorch.org/docs/stable/tensors.html#torch.Tensor.permute
 
+        # Embed the source sentences.
+        X = self.model_embeddings.source(source_padded)
 
+        # Turn the padded tensor into a PackedSequence object
+        X = pack_padded_sequence(X, source_lengths)
+        # Apply encoder to the packed sequence
+        enc_hiddens, (last_hidden, last_cell) = self.encoder(X)
+        # Pads packed batch of variable length sequences
+        enc_hiddens = pad_packed_sequence(enc_hiddens, batch_first=True)[0]
 
+        # Change the shape of last_hidden so that forward and backward versions are concatenated
+        fwd_h = last_hidden[0]
+        bwd_h = last_hidden[1]
+        cat_h_enc = torch.cat([fwd_h, bwd_h], dim=1)
+        # init_decoder_hidden is the result of  cat_h_enc dotted with h_projection
+        init_decoder_hidden = self.h_projection(cat_h_enc)
 
+        # Change the shape of last_cell so that forward and backward versions are concatenated
+        fwd_c = last_cell[0]
+        bwd_c = last_cell[1]
+        cat_c_enc = torch.cat([fwd_c, bwd_c], dim=1)
+        # init_decoder_cell is the result of  cat_h_enc dotted with h_projection
+        init_decoder_cell = self.c_projection(cat_c_enc)
+
+        # Combine the hidden and cell states
+        dec_init_state = (init_decoder_hidden, init_decoder_cell)
 
         ### END YOUR CODE
 
@@ -193,7 +236,7 @@ class NMT(nn.Module):
         @returns combined_outputs (Tensor): combined output tensor  (tgt_len, b,  h), where
                                         tgt_len = maximum target sentence length, b = batch_size,  h = hidden size
         """
-        # Chop of the <END> token for max length sentences.
+        # Chop off the <END> token for max length sentences.
         target_padded = target_padded[:-1]
 
         # Initialize the decoder state (hidden and cell)
@@ -241,9 +284,6 @@ class NMT(nn.Module):
         ###         https://pytorch.org/docs/stable/torch.html#torch.cat
         ###     Tensor Stacking:
         ###         https://pytorch.org/docs/stable/torch.html#torch.stack
-
-
-
 
 
 
