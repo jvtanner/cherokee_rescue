@@ -3,7 +3,6 @@
   <component name="ChangeListManager">
     <list default="true" id="7b8109dc-66f1-487b-b86d-767f4039cb35" name="Default Changelist" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/assignment4.zip" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/nmt_model.py" beforeDir="false" afterPath="$PROJECT_DIR$/nmt_model.py" afterDir="false" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />

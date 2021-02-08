@@ -93,7 +93,7 @@ class NMT(nn.Module):
         self.att_projection = nn.Linear(2*self.hidden_size, self.hidden_size, bias=False)
 
         # c_o_p input: concatenation of Attention vector (2hx1) and Encoder hidden (hx1). Output: hx1
-        self. combined_output_projection = nn.Linear(3*self.hidden_size, self.hidden_size, bias=False)
+        self.combined_output_projection = nn.Linear(3*self.hidden_size, self.hidden_size, bias=False)
 
         # target_vocab input: Output vector (hx1). target_vocab output: prob dist for entire target vocab
         self.target_vocab_projection = nn.Linear(self.hidden_size, len(self.vocab.tgt), bias=False)
@@ -416,7 +416,7 @@ class NMT(nn.Module):
         a_t = torch.squeeze(a_t, dim=1)
 
         # Concatenate dec_hidden and src_len
-        U_t = torch.cat([a_t, dec_hidden], dim=1)
+        U_t = torch.cat((a_t, dec_hidden), dim=1)
 
         # Dot U_t with combined output projection to get V_t
         V_t = self.combined_output_projection(U_t)
