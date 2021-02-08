@@ -292,8 +292,8 @@ class NMT(nn.Module):
         Y = self.model_embeddings.target(target_padded)
 
         for Y_t in torch.split(Y, 1):  # Y_t (1, b, e)
-            Y_t = torch.squeeze(Y_t)  # Y_t (b, e)
-            Ybar_t = torch.cat((o_prev, Y_t), dim=1)  # ybar (b, e+h)
+            Y_t = torch.squeeze(Y_t, dim=0)  # Y_t (b, e)
+            Ybar_t = torch.cat((Y_t, o_prev), dim=1)  # ybar (b, e+h)
             # Run step function to get Decoder's next hidden + cell state as well as combined output
             dec_state, o_t, _ = self.step(Ybar_t, dec_state, enc_hiddens, enc_hiddens_proj, enc_masks)
             # add new output to combined outputs
