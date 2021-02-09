@@ -77,48 +77,48 @@ class NMT(nn.Module):
         ###     Dropout Layer:
         ###         https://pytorch.org/docs/stable/nn.html#torch.nn.Dropout
 
-        self.encoder = nn.LSTM(input_size=embed_size,
-                               hidden_size=hidden_size,
-                               bidirectional=True,
-                               bias=True)
-        self.decoder = nn.LSTMCell(input_size=(embed_size + hidden_size),
-                                   hidden_size=hidden_size,
-                                   bias=True)
-        self.h_projection = nn.Linear(
-            in_features=(2 * hidden_size), out_features=hidden_size, bias=False)
-        self.c_projection = nn.Linear(
-            in_features=(2 * hidden_size), out_features=hidden_size, bias=False)
-        self.att_projection = nn.Linear(
-            in_features=(2 * hidden_size), out_features=hidden_size, bias=False)
-        self.combined_output_projection = nn.Linear(
-            in_features=(3 * hidden_size), out_features=hidden_size, bias=False)
-        self.target_vocab_projection = nn.Linear(
-            in_features=hidden_size, out_features=len(vocab.tgt), bias=False)
-        self.dropout = nn.Dropout(p=dropout_rate)
-
-
-        # # Decoder LSTM input: the word embedding
-        # self.encoder = nn.LSTM(embed_size, self.hidden_size, bias=True, bidirectional=True)
-        #
-        # # Encoder LSTM input: concatenation of Output vector (hx1) and yhat (ex1)
-        # self.decoder = nn.LSTMCell(self.hidden_size+embed_size, self.hidden_size, bias=True)
-        #
-        # # h_proj input: concatenation of forward AND backward Decoder LSTM (2hx1). h_proj output: h_decoder (hx1).
-        # self.h_projection = nn.Linear(2*self.hidden_size, self.hidden_size, bias=False)
-        #
-        # # c_proj same dimensions as above, but handling c vectors.
-        # self.c_projection = nn.Linear(2*self.hidden_size, self.hidden_size, bias=False)
-        #
-        # # att_proj input: Encoder hidden concatenation (2hx1). Output multiplied w Decoder hidden layer (hx1)
-        # self.att_projection = nn.Linear(2*self.hidden_size, self.hidden_size, bias=False)
-        #
-        # # c_o_p input: concatenation of Attention vector (2hx1) and Encoder hidden (hx1). Output: hx1
-        # self.combined_output_projection = nn.Linear(3*self.hidden_size, self.hidden_size, bias=False)
-        #
-        # # target_vocab input: Output vector (hx1). target_vocab output: prob dist for entire target vocab
-        # self.target_vocab_projection = nn.Linear(self.hidden_size, len(self.vocab.tgt), bias=False)
-        #
+        # self.encoder = nn.LSTM(input_size=embed_size,
+        #                        hidden_size=hidden_size,
+        #                        bidirectional=True,
+        #                        bias=True)
+        # self.decoder = nn.LSTMCell(input_size=(embed_size + hidden_size),
+        #                            hidden_size=hidden_size,
+        #                            bias=True)
+        # self.h_projection = nn.Linear(
+        #     in_features=(2 * hidden_size), out_features=hidden_size, bias=False)
+        # self.c_projection = nn.Linear(
+        #     in_features=(2 * hidden_size), out_features=hidden_size, bias=False)
+        # self.att_projection = nn.Linear(
+        #     in_features=(2 * hidden_size), out_features=hidden_size, bias=False)
+        # self.combined_output_projection = nn.Linear(
+        #     in_features=(3 * hidden_size), out_features=hidden_size, bias=False)
+        # self.target_vocab_projection = nn.Linear(
+        #     in_features=hidden_size, out_features=len(vocab.tgt), bias=False)
         # self.dropout = nn.Dropout(p=dropout_rate)
+
+
+        # Decoder LSTM input: the word embedding
+        self.encoder = nn.LSTM(embed_size, self.hidden_size, bias=True, bidirectional=True)
+
+        # Encoder LSTM input: concatenation of Output vector (hx1) and yhat (ex1)
+        self.decoder = nn.LSTMCell(self.hidden_size+embed_size, self.hidden_size, bias=True)
+
+        # h_proj input: concatenation of forward AND backward Decoder LSTM (2hx1). h_proj output: h_decoder (hx1).
+        self.h_projection = nn.Linear(2*self.hidden_size, self.hidden_size, bias=False)
+
+        # c_proj same dimensions as above, but handling c vectors.
+        self.c_projection = nn.Linear(2*self.hidden_size, self.hidden_size, bias=False)
+
+        # att_proj input: Encoder hidden concatenation (2hx1). Output multiplied w Decoder hidden layer (hx1)
+        self.att_projection = nn.Linear(2*self.hidden_size, self.hidden_size, bias=False)
+
+        # c_o_p input: concatenation of Attention vector (2hx1) and Encoder hidden (hx1). Output: hx1
+        self.combined_output_projection = nn.Linear(3*self.hidden_size, self.hidden_size, bias=False)
+
+        # target_vocab input: Output vector (hx1). target_vocab output: prob dist for entire target vocab
+        self.target_vocab_projection = nn.Linear(self.hidden_size, len(self.vocab.tgt), bias=False)
+
+        self.dropout = nn.Dropout(p=dropout_rate)
 
         ### END YOUR CODE
 
@@ -208,33 +208,6 @@ class NMT(nn.Module):
         ###         https://pytorch.org/docs/stable/torch.html#torch.cat
         ###     Tensor Permute:
         ###         https://pytorch.org/docs/stable/tensors.html#torch.Tensor.permute
-
-        # # 1. Embed the padded source sentences.
-        # X = self.model_embeddings.source(source_padded)  # (src_len, b, e)
-        #
-        # # 2. Feed the embeddings into the encoder.
-        # # - Before encoder, apply pack padding to embeddings.
-        # X = pack_padded_sequence(X, source_lengths)
-        # # - Apply encoder.
-        # # enc_hiddens (src_len, b, 2*h), (last_hidden (2, b, h), last_cell (2, b, h))
-        # enc_hiddens, (last_hidden, last_cell) = self.encoder(X)
-        # # - After encoder, apply pad packing to encoder hidden states and reshape.
-        # enc_hiddens = pad_packed_sequence(
-        #     enc_hiddens)[0].permute(1, 0, 2)  # (b, src_len, 2*h)
-        #
-        # # 3. Compute dec_init_state.
-        # # - `init_decoder_hidden`
-        # h_fwd, h_bwd = last_hidden[0], last_hidden[1]  # (b, h)
-        # h_enc_cat = torch.cat([h_fwd, h_bwd], dim=1)  # (b, 2*h)
-        # init_decoder_hidden = self.h_projection(h_enc_cat)  # (b, 2*h)
-        # # - `init_decoder_cell`
-        # c_fwd, c_bwd = last_cell[0], last_cell[1]  # (b, h)
-        # c_enc_cat = torch.cat([c_fwd, c_bwd], dim=1)  # (b, 2*h)
-        # init_decoder_cell = self.c_projection(c_enc_cat)  # (b, h)
-        # # Final hidden and cell states to pass to the decoder.
-        # dec_init_state = (init_decoder_hidden, init_decoder_cell)
-
-
 
         # Embed the source sentences.
         X = self.model_embeddings.source(source_padded)
@@ -332,27 +305,6 @@ class NMT(nn.Module):
         ###         https://pytorch.org/docs/stable/torch.html#torch.cat
         ###     Tensor Stacking:
         ###         https://pytorch.org/docs/stable/torch.html#torch.stack
-
-        # # 1. Apply the attention projection layer to `enc_hiddens`.
-        # enc_hiddens_proj = self.att_projection(enc_hiddens)  # (b, src_len, h)
-        #
-        # # 2. Construct `Y` of target sentence using the target model sentence embeddings.
-        # Y = self.model_embeddings.target(target_padded)  # (tgt_len, b, e)
-        #
-        # # 3. Iterate over the time dimension of `Y`
-        # for Y_t in torch.split(Y, 1, dim=0):
-        #     # Y_t (1, b, e)
-        #     Y_t = torch.squeeze(Y_t, dim=0)  # (b, e)
-        #     Ybar_t = torch.cat([Y_t, o_prev], dim=1)  # (b, e + h)
-        #     # dec_state (b, h), o_t (b, h), e_t (b, src_len)
-        #     dec_state, o_t, e_t = self.step(
-        #         Ybar_t, dec_state, enc_hiddens, enc_hiddens_proj, enc_masks)
-        #     combined_outputs.append(o_t)
-        #     o_prev = o_t
-        #
-        # # 4. Convert combined outputs from a list to a single tensor shape.
-        # combined_outputs = torch.stack(
-        #     combined_outputs, dim=0)  # (tgt_len, b, h)
 
 
         # Dot product of W_attnproj (handout notation) with enc_hiddens
