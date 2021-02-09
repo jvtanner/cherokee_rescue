@@ -431,32 +431,32 @@ class NMT(nn.Module):
         ###     Tensor Squeeze:
         ###         https://pytorch.org/docs/stable/torch.html#torch.squeeze
 
-        # 1. Apply decoder to Ybar_t and previous hidden and cell decoder states.
-        dec_prev_h, dec_prev_c = dec_state
-        dec_state = self.decoder(Ybar_t, (dec_prev_h, dec_prev_c))
-
-        # 2. Split dec_state into two parts.
-        dec_hidden, dec_cell = dec_state  # dec_hidden (b, h), dec_cell (b, h)
-
-        # 3. Compute the multiplicative attention scores.
-        dec_hidden_unsqueezed = dec_hidden.unsqueeze(dim=2)  # (b, h, 1)
-        # enc_hiddens_proj (b, src_len, h)
-        e_t = enc_hiddens_proj.bmm(dec_hidden_unsqueezed)  # (b, src_len, 1)
-        e_t = e_t.squeeze(dim=2)  # (b, src_len)
-
-
+        # # 1. Apply decoder to Ybar_t and previous hidden and cell decoder states.
+        #         # dec_prev_h, dec_prev_c = dec_state
+        #         # dec_state = self.decoder(Ybar_t, (dec_prev_h, dec_prev_c))
+        #         #
+        #         # # 2. Split dec_state into two parts.
+        #         # dec_hidden, dec_cell = dec_state  # dec_hidden (b, h), dec_cell (b, h)
+        #         #
+        #         # # 3. Compute the multiplicative attention scores.
+        #         # dec_hidden_unsqueezed = dec_hidden.unsqueeze(dim=2)  # (b, h, 1)
+        #         # # enc_hiddens_proj (b, src_len, h)
+        #         # e_t = enc_hiddens_proj.bmm(dec_hidden_unsqueezed)  # (b, src_len, 1)
+        #         # e_t = e_t.squeeze(dim=2)  # (b, src_len)
 
 
-        # # Apply decoder to Ybar_t and dec_state to get new dec_state
-        # dec_state = self.decoder(Ybar_t, dec_state)
-        #
-        # # Split dec_state into 2 parts: dec_hidden and dec_cell
-        # dec_hidden, dec_cell = dec_state
-        #
-        # # Compute attention scores
-        # dec_hidden_unsqueeze = torch.unsqueeze(dec_hidden, dim=2)
-        # e_t = torch.bmm(enc_hiddens_proj, dec_hidden_unsqueeze)
-        # e_t = torch.squeeze(e_t, dim=2)
+
+
+        # Apply decoder to Ybar_t and dec_state to get new dec_state
+        dec_state = self.decoder(Ybar_t, dec_state)
+
+        # Split dec_state into 2 parts: dec_hidden and dec_cell
+        dec_hidden, dec_cell = dec_state
+
+        # Compute attention scores
+        dec_hidden_unsqueeze = torch.unsqueeze(dec_hidden, dim=2)
+        e_t = torch.bmm(enc_hiddens_proj, dec_hidden_unsqueeze)
+        e_t = torch.squeeze(e_t, dim=2)
 
         ### END YOUR CODE
 
@@ -492,43 +492,43 @@ class NMT(nn.Module):
         ###     Tanh:
         ###         https://pytorch.org/docs/stable/torch.html#torch.tanh
 
-        # 1. Apply softmax to get attention distribution.
-        alpha_t = torch.nn.functional.softmax(e_t, dim=1)  # (b, src_len)
-        alpha_t = alpha_t.unsqueeze(dim=1)  # (b, 1, src_len)
-
-        # 2. Use bmm to obtain the attention output vector.
-        # enc_hiddens (b, src_len, 2h)
-        a_t = alpha_t.bmm(enc_hiddens)  # (b, 1, 2h)
-        a_t = a_t.squeeze(dim=1)  # (b, 2h)
-
-        # 3. Concatentate dec_hidden with a_t to compute U_t
-        U_t = torch.cat([a_t, dec_hidden], dim=1)  # (b, 3h)
-
-        # 4. Apply the combiend output projection layer to U_t to compute V_t
-        V_t = self.combined_output_projection(U_t)  # (b, h)
-
-        # 5. Compute O_t by applying tanh and then dropout
-        O_t = self.dropout(V_t.tanh())  # (b, h)
-
-
-
-        # # Apply softmax to e_t
-        # alpha_t = nn.functional.softmax(e_t, dim=1)
-        # alpha_t = torch.unsqueeze(alpha_t, dim=1)
+        # # 1. Apply softmax to get attention distribution.
+        # alpha_t = torch.nn.functional.softmax(e_t, dim=1)  # (b, src_len)
+        # alpha_t = alpha_t.unsqueeze(dim=1)  # (b, 1, src_len)
         #
-        # # Use Hadamard product on softmax result and enc_hiddens to get attention vector
-        # a_t = torch.bmm(alpha_t, enc_hiddens)
-        # a_t = torch.squeeze(a_t, dim=1)
+        # # 2. Use bmm to obtain the attention output vector.
+        # # enc_hiddens (b, src_len, 2h)
+        # a_t = alpha_t.bmm(enc_hiddens)  # (b, 1, 2h)
+        # a_t = a_t.squeeze(dim=1)  # (b, 2h)
         #
-        # # Concatenate dec_hidden and src_len
-        # U_t = torch.cat((a_t, dec_hidden), dim=1)
+        # # 3. Concatentate dec_hidden with a_t to compute U_t
+        # U_t = torch.cat([a_t, dec_hidden], dim=1)  # (b, 3h)
         #
-        # # Dot U_t with combined output projection to get V_t
-        # V_t = self.combined_output_projection(U_t)
+        # # 4. Apply the combiend output projection layer to U_t to compute V_t
+        # V_t = self.combined_output_projection(U_t)  # (b, h)
         #
-        # # Apply Tanh and dropout to get final Output
-        # norm_V_t = torch.tanh(V_t)
-        # O_t = self.dropout(norm_V_t)
+        # # 5. Compute O_t by applying tanh and then dropout
+        # O_t = self.dropout(V_t.tanh())  # (b, h)
+
+
+
+        # Apply softmax to e_t
+        alpha_t = nn.functional.softmax(e_t, dim=1)
+        alpha_t = torch.unsqueeze(alpha_t, dim=1)
+
+        # Use Hadamard product on softmax result and enc_hiddens to get attention vector
+        a_t = torch.bmm(alpha_t, enc_hiddens)
+        a_t = torch.squeeze(a_t, dim=1)
+
+        # Concatenate dec_hidden and src_len
+        U_t = torch.cat((a_t, dec_hidden), dim=1)
+
+        # Dot U_t with combined output projection to get V_t
+        V_t = self.combined_output_projection(U_t)
+
+        # Apply Tanh and dropout to get final Output
+        norm_V_t = torch.tanh(V_t)
+        O_t = self.dropout(norm_V_t)
 
         ### END YOUR CODE
 
